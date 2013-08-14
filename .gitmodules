@@ -1,0 +1,9 @@
+[submodule "3d-vectorOPs"]
+	path = 3d-vectorOPs
+	url = git@github.com:frostbaum/3d-vectorOPs.git
+[submodule "MK-alg"]
+	path = MK-alg
+	url = git@github.com:frostbaum/MK-alg.git
+[submodule "structure"]
+	path = structure
+	url = git@github.com:frostbaum/structure.git
