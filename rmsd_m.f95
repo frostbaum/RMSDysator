@@ -1,6 +1,7 @@
 module rmsd_m
   use v3d_func_rep
   use structure_c
+  use llist_c
   use mk
   implicit none
   save
@@ -103,39 +104,42 @@ contains
     end if
   end subroutine
   
-  subroutine rmsd_match_anc(tgt,mdl,anc_mdl,mdl_coords,rmsd,anccnt,idx)
+  subroutine rmsd_match_anc(tgt,mdl,anc_mdl,mdl_coords,bucket,anccnt)
     type(structure) :: mdl, tgt
     type(anchor) :: anc_mdl
+    type(llist) :: bucket1, bucket2, bucket3, bucket
     double precision, dimension(3,natoms) :: mdl_coords
-    double precision :: rmsd, rmsdtmp
-    integer, dimension(natoms) :: idx, tmpidx
+    double precision :: epstmp, tmpd1, tmpd2, tmpd3, tmpd
     integer :: i, j, k, ii, jj, kk, anccnt
-    double precision :: tmpd1, tmpd2
     
-    rmsd = 777.d0
-    idx = 0
+    epstmp = min(am_eps,anc_mdl%d(1),anc_mdl%d(2),anc_mdl%d(3))
     anccnt = 0
+    
     do i = 1, tgt%lbtype(anc_mdl%t(1))%i(0)
       ii = tgt%lbtype(anc_mdl%t(1))%i(i)
       do j = 1, tgt%lbtype(anc_mdl%t(2))%i(0)
         jj = tgt%lbtype(anc_mdl%t(2))%i(j)
         
-        tmpd1 = get_dist(struc_get_coords(tgt,ii),struc_get_coords(tgt,jj))
-        if (abs(tmpd1-anc_mdl%d(1)) .gt. am_eps) cycle
+        tmpd1 = abs(get_dist(struc_get_coords(tgt,ii),struc_get_coords(tgt,jj))-anc_mdl%d(1))
+        if (tmpd1 .ge. epstmp) cycle
         
         do k = 1, tgt%lbtype(anc_mdl%t(3))%i(0)
           kk = tgt%lbtype(anc_mdl%t(3))%i(k)
             
-          tmpd1 = get_dist(struc_get_coords(tgt,ii),struc_get_coords(tgt,kk))
-          tmpd2 = get_dist(struc_get_coords(tgt,jj),struc_get_coords(tgt,kk))
-          if (abs(tmpd1-anc_mdl%d(2)) .gt. am_eps .or. abs(tmpd2-anc_mdl%d(3)) .gt. am_eps) cycle
+          tmpd2 = abs(get_dist(struc_get_coords(tgt,ii),struc_get_coords(tgt,kk))-anc_mdl%d(2))
+          tmpd3 = abs(get_dist(struc_get_coords(tgt,jj),struc_get_coords(tgt,kk))-anc_mdl%d(3))
+          if (tmpd2 .ge. epstmp .or. tmpd3 .ge. epstmp) cycle
           
-          call superpose(tgt,(/ ii, jj, kk /),mdl,mdl_coords,rmsdtmp,tmpidx)
-            
-          if (rmsdtmp .lt. rmsd) then
-            rmsd = rmsdtmp
-            idx = tmpidx
+          tmpd = max(tmpd1,tmpd2,tmpd3)
+          
+          if (tmpd .lt. rmsdlim) then
+            call list_add(bucket1,transfer((/ii,jj,kk/),list_data))
+          else if (tmpd .lt. 2*rmsdlim) then
+            call list_add(bucket2,transfer((/ii,jj,kk/),list_data))
+          else
+            call list_add(bucket3,transfer((/ii,jj,kk/),list_data))
           end if
+          
           anccnt = anccnt + 1
         end do
       end do

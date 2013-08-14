@@ -7,3 +7,6 @@
 [submodule "structure"]
 	path = structure
 	url = git@github.com:frostbaum/structure.git
+[submodule "llist_gen"]
+	path = llist_gen
+	url = git@github.com:frostbaum/llist_gen.git
