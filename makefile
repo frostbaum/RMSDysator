@@ -1,7 +1,7 @@
 FC=gfortran
 FCFLAGS+= -O2
 LDFLAGS+= -llapack -lblas
-p_NAME := Rektalpenisator
+p_NAME := RMSDysator
 
 .PHONY: all, clean, distclean
 

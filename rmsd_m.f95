@@ -85,30 +85,37 @@ contains
     
   end subroutine
   
-  subroutine rmsd_calc(rmsd,anccnt,idx)
+  subroutine rmsd_calc(rmsd,anccnt)
     integer :: anccnt, tmpcnt1, tmpcnt2
-    integer, dimension(natoms) :: idx1, idx2, idx
+    integer, dimension(3) :: sample
     double precision :: rmsd, rmsdtmp1, rmsdtmp2
+    type(llist) :: s1_list, s2_list
+    logical :: liststat
     
-    call rmsd_match_anc(s2,s1,anc_s1,s1_coords,rmsdtmp1,tmpcnt1,idx1)
+    rmsd = 999.d0
     
-    call rmsd_match_anc(s1,s2,anc_s2,s2_coords,rmsdtmp2,tmpcnt2,idx2)
+    call rmsd_match_anc(s2,s1,anc_s1,s2_list,tmpcnt1)
     
+    call rmsd_match_anc(s1,s2,anc_s2,s1_list,tmpcnt2)
+    
+    call list_rewind(s1_list)
+    
+    liststat = list_status(s1_list)
+    do while (liststat)
+      call superpose(s1,transfer(list_get(s1_list),sample),s2,s2_coords,rmsdtmp1)
+      call list_next(s1_list,liststat)
+      rmsd = min(rmsd,rmsdtmp1)
+    end do
+    call list_clear(s1_list)
+    call list_clear(s2_list)
     anccnt = tmpcnt1 + tmpcnt2
-    if (rmsdtmp1 .lt. rmsdtmp2) then
-      rmsd = rmsdtmp1
-      idx = idx1
-    else
-      rmsd = rmsdtmp2
-      idx = idx2
-    end if
+    !~rmsd = min(rmsdtmp1,rmsdtmp2)
   end subroutine
   
-  subroutine rmsd_match_anc(tgt,mdl,anc_mdl,mdl_coords,bucket,anccnt)
+  subroutine rmsd_match_anc(tgt,mdl,anc_mdl,bucket,anccnt)
     type(structure) :: mdl, tgt
     type(anchor) :: anc_mdl
-    type(llist) :: bucket1, bucket2, bucket3, bucket
-    double precision, dimension(3,natoms) :: mdl_coords
+    type(llist) :: bucket, bucket1, bucket2
     double precision :: epstmp, tmpd1, tmpd2, tmpd3, tmpd
     integer :: i, j, k, ii, jj, kk, anccnt
     
@@ -133,43 +140,38 @@ contains
           tmpd = max(tmpd1,tmpd2,tmpd3)
           
           if (tmpd .lt. rmsdlim) then
-            call list_add(bucket1,transfer((/ii,jj,kk/),list_data))
+            call list_add(bucket,transfer((/ii,jj,kk/),list_data))
           else if (tmpd .lt. 2*rmsdlim) then
-            call list_add(bucket2,transfer((/ii,jj,kk/),list_data))
+            call list_add(bucket1,transfer((/ii,jj,kk/),list_data))
           else
-            call list_add(bucket3,transfer((/ii,jj,kk/),list_data))
+            call list_add(bucket2,transfer((/ii,jj,kk/),list_data))
           end if
           
           anccnt = anccnt + 1
         end do
       end do
     end do
+    
+    call list_merge(bucket, bucket1)
+    call list_merge(bucket, bucket2)
   end subroutine
 
-  subroutine superpose(tgt,anc_tgt_i,mdl,mdl_coords,rmsd,idx)
+  subroutine superpose(tgt,anc_tgt_i,mdl,mdl_coords,rmsd)
     type(structure) :: mdl, tgt
     integer, dimension(3) :: anc_tgt_i
-    integer, dimension(natoms) :: idx1, idx2, idx
     double precision :: rmsd1, rmsd2, rmsd
     integer :: i
     double precision, dimension(3,natoms) :: mdl_coords, mdl_tcrd, tgt_tcrd
     
     call anc_superpose(tgt,anc_tgt_i,tgt_tcrd)
-    call assign_atoms(mdl,mdl_coords,tgt,mdl_tcrd,tgt_tcrd,idx1)
+    call assign_atoms(mdl,mdl_coords,tgt,mdl_tcrd,tgt_tcrd)
     call rmsd_quat(mdl_tcrd,tgt_tcrd,rmsd1)
     do i = 1, natoms
       mdl_coords(:,i) = get_refl_plane_n((/0.d0,0.d0,1.d0/),mdl_coords(:,i))
     end do
-    call assign_atoms(mdl,mdl_coords,tgt,mdl_tcrd,tgt_tcrd,idx2)
+    call assign_atoms(mdl,mdl_coords,tgt,mdl_tcrd,tgt_tcrd)
     call rmsd_quat(mdl_tcrd,tgt_tcrd,rmsd2)
-    !~rmsd = min(rmsd1,rmsd2)
-    if (rmsd1 .lt. rmsd2) then
-      rmsd = rmsd1
-      idx = idx1
-    else
-      rmsd = rmsd2
-      idx = idx2
-    end if
+    rmsd = min(rmsd1,rmsd2)
   end subroutine
 
   subroutine anc_superpose(tgt,anc_tgt_i,tgt_coordstmp)
@@ -194,7 +196,7 @@ contains
     
   end subroutine
   
-  subroutine assign_atoms(mdl,mdl_coords,tgt,mdl_coordstmp,tgt_coordstmp,mdl_idx)
+  subroutine assign_atoms(mdl,mdl_coords,tgt,mdl_coordstmp,tgt_coordstmp)
     type(structure) :: mdl, tgt
     integer :: tn, i, j, k, nttn
     integer, dimension(natoms) :: tmpsol, mdl_idx
