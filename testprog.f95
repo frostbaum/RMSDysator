@@ -9,8 +9,8 @@ type(structure) :: s1,s2
 logical :: myfail
 double precision :: asd, t1, t2
 character(len=4) :: ic, jc
-call rmsd_set(0.4d0,.true.,.5d0)
-!~open(111,file='indices_2way.txt')
+call rmsd_set(.1d0,.false.,1.2d0)
+!~open(111,file='indices.txt')
 !~open(6,file='tmp.out')
 !~call cpu_time(t1)
 !~call struc_read_file(s2,'try.h2o/struc0002.arc','arc')

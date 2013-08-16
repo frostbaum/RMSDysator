@@ -15,7 +15,7 @@ module rmsd_m
   
   type(structure), pointer :: s1 => null(), s2 => null()
   integer :: natoms = 0
-  double precision :: am_eps = .4d0, rmsdlim = .5d0
+  double precision :: am_eps = 1.d0, rmsdlim = .5d0
   logical :: mirror = .true.
   
   type(anchor) :: anc_s1, anc_s2
@@ -23,8 +23,8 @@ module rmsd_m
   integer, dimension(:), allocatable :: atypes, ntypes
   
 contains
-  subroutine rmsd_set(eps,mirrorflag,rmsdlimit)
-    double precision :: eps, rmsdlimit
+  subroutine rmsd_set(rmsdlimit,mirrorflag,eps)
+    double precision :: rmsdlimit, eps
     logical :: mirrorflag
     
     am_eps = eps
@@ -87,40 +87,57 @@ contains
   
   subroutine rmsd_calc(rmsd,anccnt)
     integer :: anccnt, tmpcnt1, tmpcnt2
-    integer, dimension(3) :: sample
-    double precision :: rmsd, rmsdtmp1, rmsdtmp2
-    type(llist) :: s1_list, s2_list
-    logical :: liststat
+    double precision :: rmsd, rmsdtmp
     
     rmsd = 999.d0
     
-    call rmsd_match_anc(s2,s1,anc_s1,s2_list,tmpcnt1)
+    call rmsd_match_struc(s1,anc_s1,s1_coords,s2,rmsdtmp,tmpcnt1)
+    rmsd = min(rmsd,rmsdtmp)
+    call rmsd_match_struc(s2,anc_s2,s2_coords,s1,rmsdtmp,tmpcnt2)
+    rmsd = min(rmsd,rmsdtmp)
     
-    call rmsd_match_anc(s1,s2,anc_s2,s1_list,tmpcnt2)
-    
-    call list_rewind(s1_list)
-    
-    liststat = list_status(s1_list)
-    do while (liststat)
-      call superpose(s1,transfer(list_get(s1_list),sample),s2,s2_coords,rmsdtmp1)
-      call list_next(s1_list,liststat)
-      rmsd = min(rmsd,rmsdtmp1)
-    end do
-    call list_clear(s1_list)
-    call list_clear(s2_list)
     anccnt = tmpcnt1 + tmpcnt2
-    !~rmsd = min(rmsdtmp1,rmsdtmp2)
   end subroutine
   
-  subroutine rmsd_match_anc(tgt,mdl,anc_mdl,bucket,anccnt)
+  subroutine rmsd_match_struc(mdl,anc_mdl,mdl_coords,tgt,rmsd,anccnt)
+    type(structure) :: mdl, tgt
+    type(anchor) :: anc_mdl
+    type(llist) :: anc_list_tgt
+    double precision, dimension(3,natoms) :: mdl_coords
+    integer, dimension(3) :: sample
+    double precision :: rmsdtmp, rmsd
+    integer :: anccnt
+    logical :: liststat
+    
+    rmsd = 999.d0
+    anccnt = 0
+    
+    call rmsd_match_anc(tgt,mdl,anc_mdl,anc_list_tgt)
+    
+    call list_rewind(anc_list_tgt)
+    
+    liststat = list_status(anc_list_tgt)
+    
+    do while (liststat)
+      if (anccnt .gt. 2 + natoms) exit
+      if (rmsd .le. rmsdlim) exit
+      anccnt = anccnt + 1
+      call superpose(tgt,transfer(list_get(anc_list_tgt),sample),mdl,mdl_coords,rmsdtmp)
+      call list_next(anc_list_tgt,liststat)
+      rmsd = min(rmsd,rmsdtmp)
+    end do
+    
+    call list_clear(anc_list_tgt)
+  end subroutine
+  
+  subroutine rmsd_match_anc(tgt,mdl,anc_mdl,bucket)
     type(structure) :: mdl, tgt
     type(anchor) :: anc_mdl
     type(llist) :: bucket, bucket1, bucket2
     double precision :: epstmp, tmpd1, tmpd2, tmpd3, tmpd
-    integer :: i, j, k, ii, jj, kk, anccnt
+    integer :: i, j, k, ii, jj, kk
     
     epstmp = min(am_eps,anc_mdl%d(1),anc_mdl%d(2),anc_mdl%d(3))
-    anccnt = 0
     
     do i = 1, tgt%lbtype(anc_mdl%t(1))%i(0)
       ii = tgt%lbtype(anc_mdl%t(1))%i(i)
@@ -132,22 +149,21 @@ contains
         
         do k = 1, tgt%lbtype(anc_mdl%t(3))%i(0)
           kk = tgt%lbtype(anc_mdl%t(3))%i(k)
-            
+          
           tmpd2 = abs(get_dist(struc_get_coords(tgt,ii),struc_get_coords(tgt,kk))-anc_mdl%d(2))
           tmpd3 = abs(get_dist(struc_get_coords(tgt,jj),struc_get_coords(tgt,kk))-anc_mdl%d(3))
           if (tmpd2 .ge. epstmp .or. tmpd3 .ge. epstmp) cycle
           
-          tmpd = max(tmpd1,tmpd2,tmpd3)
+          tmpd = (tmpd1 + tmpd2 + tmpd3) / 3.d0 !max(tmpd1,tmpd2,tmpd3)
           
-          if (tmpd .lt. rmsdlim) then
+          if (tmpd .lt. 2*rmsdlim) then
             call list_add(bucket,transfer((/ii,jj,kk/),list_data))
-          else if (tmpd .lt. 2*rmsdlim) then
+          else if (tmpd .lt. am_eps*.5d0) then
             call list_add(bucket1,transfer((/ii,jj,kk/),list_data))
-          else
+          else! if (tmpd .lt. 4*rmsdlim) then
             call list_add(bucket2,transfer((/ii,jj,kk/),list_data))
           end if
           
-          anccnt = anccnt + 1
         end do
       end do
     end do
@@ -166,12 +182,16 @@ contains
     call anc_superpose(tgt,anc_tgt_i,tgt_tcrd)
     call assign_atoms(mdl,mdl_coords,tgt,mdl_tcrd,tgt_tcrd)
     call rmsd_quat(mdl_tcrd,tgt_tcrd,rmsd1)
-    do i = 1, natoms
-      mdl_coords(:,i) = get_refl_plane_n((/0.d0,0.d0,1.d0/),mdl_coords(:,i))
-    end do
-    call assign_atoms(mdl,mdl_coords,tgt,mdl_tcrd,tgt_tcrd)
-    call rmsd_quat(mdl_tcrd,tgt_tcrd,rmsd2)
-    rmsd = min(rmsd1,rmsd2)
+    if (mirror) then
+      do i = 1, natoms
+        mdl_coords(:,i) = get_refl_plane_n((/0.d0,0.d0,1.d0/),mdl_coords(:,i))
+      end do
+      call assign_atoms(mdl,mdl_coords,tgt,mdl_tcrd,tgt_tcrd)
+      call rmsd_quat(mdl_tcrd,tgt_tcrd,rmsd2)
+      rmsd = min(rmsd1,rmsd2)
+    else
+      rmsd = rmsd1
+    end if
   end subroutine
 
   subroutine anc_superpose(tgt,anc_tgt_i,tgt_coordstmp)
