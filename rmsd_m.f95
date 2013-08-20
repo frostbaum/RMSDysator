@@ -119,7 +119,7 @@ contains
     liststat = list_status(anc_list_tgt)
     
     do while (liststat)
-      if (anccnt .gt. 2 + natoms) exit
+      !~if (anccnt .gt. 2 + natoms) exit
       if (rmsd .le. rmsdlim) exit
       anccnt = anccnt + 1
       call superpose(tgt,transfer(list_get(anc_list_tgt),sample),mdl,mdl_coords,rmsdtmp)
