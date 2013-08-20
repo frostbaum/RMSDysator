@@ -12,13 +12,14 @@ program main
   integer, dimension(0:19) :: ref_array, com_array
   type(structure), dimension(:), allocatable :: struc_rep
   type(tag_list), dimension(:), allocatable :: tl, tl_tmp
-  double precision :: rmsd, rmsd_tmp, ediff, ediff_tmp, rmsd_lim = .5d0, ediff_lim = .5d0, e_ub = 0.d0
+  double precision :: rmsd, rmsd_tmp, ediff, ediff_tmp, rmsd_lim = .5d0, ediff_lim = 5.d0, e_ub = 0.d0, anceps = 1.d0
   double precision, dimension(:), allocatable :: maxrmsd, maxediff, maxrmsd_tmp, maxediff_tmp
   double precision, parameter :: h2kcm = 627.509469d0
   
   open(123,file='tmp.txt',status='old')
   read(123,*) num_files
   read(123,*) rmsd_lim
+  read(123,*) anceps
   
   allocate(struc_rep(num_files))
   
@@ -49,7 +50,7 @@ program main
   close(123)
 
   call qsort(struc_rep)
-  call rmsd_set(rmsd_lim,.true.,1.d0)
+  call rmsd_set(rmsd_lim,.true.,anceps)
   call rmsd_init(struc_rep(1))
   
   open(95,file='rmsd.txt')
