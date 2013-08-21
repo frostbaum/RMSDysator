@@ -14,6 +14,7 @@ program main
   type(tag_list), dimension(:), allocatable :: tl, tl_tmp
   double precision :: rmsd, rmsd_tmp, ediff, ediff_tmp, rmsd_lim = .5d0, ediff_lim = 5.d0, e_ub = 0.d0, anceps = 1.d0
   double precision, dimension(:), allocatable :: maxrmsd, maxediff, maxrmsd_tmp, maxediff_tmp
+  double precision, dimension(:,:), allocatable :: rmsdmat
   double precision, parameter :: h2kcm = 627.509469d0
   
   open(123,file='tmp.txt',status='old')
@@ -21,8 +22,8 @@ program main
   read(123,*) rmsd_lim
   read(123,*) anceps
   
-  allocate(struc_rep(num_files))
-  
+  allocate(struc_rep(num_files),rmsdmat(num_files,num_files))
+  rmsdmat = 0.d0
   read(123,*) curnum, filename
   call struc_read_file(struc_rep(1),trim(filename),'xyz')
   call struc_set(struc_rep(1),t=curnum)
@@ -50,90 +51,27 @@ program main
   close(123)
 
   call qsort(struc_rep)
+  
   call rmsd_set(rmsd_lim,.true.,anceps)
   call rmsd_init(struc_rep(1))
   
-  open(95,file='rmsd.txt')
-  
-  allocate(tl(1),maxrmsd(1),maxediff(1))
-  allocate(tl(1)%i(1))
-  tl(1)%i(1) = 1
-  maxrmsd(1) = 0.d0
-  maxediff(1) = 0.d0
-  
-  do i=2,num_files
-    rmsd = 1111.d0
-    cand = 0
+  do i = 1, num_files-1
     call rmsd_set_anc_s1(struc_rep(i))
-    !~write(*,*)
-    do j=1,size(tl)
-      ediff_tmp = abs(struc_get_energy(struc_rep(i)) - struc_get_energy(struc_rep(tl(j)%i(1))))*h2kcm
-      if (ediff_tmp .gt. ediff_lim) cycle
-      
-      call rmsd_set_anc_s2(struc_rep(tl(j)%i(1)))
-      call rmsd_calc(rmsd_tmp,cnt)
-      
-      write(95,'(A,I4.1,A,I4.1,A,F10.4,A,F10.4,A,I4)') 'compare ',struc_rep(i)%tag,' and ',struc_rep(tl(j)%i(1))%tag,&
-      &'; RMSD [A]: ',rmsd_tmp,';    Delta E [kcal/mol]: ',(struc_rep(tl(j)%i(1))%energy-struc_rep(i)%energy)*h2kcm,&
-      &';  Match count:', cnt
-      
-      if (rmsd_tmp .ge. rmsd) cycle
-      cand = j
-      rmsd = rmsd_tmp
-      ediff = ediff_tmp
+    do j = i+1, num_files
+      call rmsd_set_anc_s2(struc_rep(j))
+      call rmsd_calc(rmsd,cnt)
+      rmsdmat(i,j) = rmsd
+      rmsdmat(j,i) = rmsd
     end do
-    if (rmsd .le. rmsd_lim) then
-      !~write(*,'(I4.1,A,I4.1)') i, ' is higher in energy than ', tl(cand)%i(1)
-      allocate(tmp_array(size(tl(cand)%i)))
-      tmp_array = tl(cand)%i
-      deallocate(tl(cand)%i)
-      allocate(tl(cand)%i(size(tmp_array)+1))
-      tl(cand)%i(:size(tmp_array)) = tmp_array
-      tl(cand)%i(size(tmp_array)+1) = i
-      deallocate(tmp_array)
-      
-      maxrmsd(cand) = max(maxrmsd(cand),rmsd)
-      maxediff(cand) = max(maxediff(cand),ediff)
-    else
-      !~write(*,'(I4.1,A)') i, ' is a new structure'
-      tmpsize = size(tl)
-      allocate(tl_tmp(tmpsize),maxediff_tmp(tmpsize),maxrmsd_tmp(tmpsize))
-      maxediff_tmp = maxediff
-      maxrmsd_tmp = maxrmsd
-      
-      do k=1,tmpsize
-        allocate(tl_tmp(k)%i(size(tl(k)%i)))
-        tl_tmp(k)%i = tl(k)%i
-      end do
-      
-      deallocate(tl,maxediff,maxrmsd)
-      allocate(tl(tmpsize+1),maxediff(tmpsize+1),maxrmsd(tmpsize+1))
-      maxediff(:tmpsize) = maxediff_tmp
-      maxrmsd(:tmpsize) = maxrmsd_tmp
-      
-      do k=1,tmpsize
-        allocate(tl(k)%i(size(tl_tmp(k)%i)))
-        tl(k)%i = tl_tmp(k)%i
-      end do
-      
-      allocate(tl(tmpsize+1)%i(1))
-      tl(tmpsize+1)%i(1) = i
-      maxediff(tmpsize+1) = 0.d0
-      maxrmsd(tmpsize+1) = 0.d0
-      
-      deallocate(tl_tmp,maxediff_tmp,maxrmsd_tmp)
-    end if
   end do
-  close(95)
   
-  open(111,file='out.txt',status='replace')
-  !~write(111,*) '#energy,', 'occurrence,', 'matching structures with increasing energy'
-  do i=1,size(tl)
-    write(111,'(F13.5,I4,F10.5,F10.5,999I5)') (struc_rep(tl(i)%i(1))%energy-e_ub)*h2kcm, size(tl(i)%i), maxrmsd(i), maxediff(i),&
-    & struc_rep(tl(i)%i(:))%tag
+  open(444,file='new.out')
+  do i = 1, num_files
+    write(444,'(100F8.3)') rmsdmat(:,i)
   end do
-  close(111)
-  deallocate(struc_rep)
+  
+  close(444)
+  
   stop
 666 write(*,*) 'bad input'
 
