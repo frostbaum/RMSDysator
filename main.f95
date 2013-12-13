@@ -130,7 +130,7 @@ program main
   open(111,file='out.txt',status='replace')
   !~write(111,*) '#energy,', 'occurrence,', 'matching structures with increasing energy'
   do i=1,size(tl)
-    write(111,'(F16.5,I4,F10.5,F10.5,999I5)') (struc_rep(tl(i)%i(1))%energy-e_ub)*h2kcm, size(tl(i)%i), maxrmsd(i), maxediff(i),&
+    write(111,'(F16.5,I4,F10.5,F10.5,9999I5)') (struc_rep(tl(i)%i(1))%energy-e_ub)*h2kcm, size(tl(i)%i), maxrmsd(i), maxediff(i),&
     & struc_rep(tl(i)%i(:))%tag
   end do
   close(111)
