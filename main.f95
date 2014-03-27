@@ -6,6 +6,7 @@ program main
   type tag_list
     integer, dimension(:), allocatable :: i
   end type
+  
   integer :: num_files, i, j, cand, k, cnt, curnum, tmpsize, tmpratio, curratio
   character(len=50) :: filename
   integer, dimension(:), allocatable :: tmp_array
@@ -63,7 +64,8 @@ program main
   tl(1)%i(1) = 1
   maxrmsd(1) = 0.d0
   maxediff(1) = 0.d0
-  
+
+
   write(6,'(A)') 'Starting analysis ...'
   
   tmpratio=0
@@ -134,13 +136,17 @@ program main
       
       deallocate(tl_tmp,maxediff_tmp,maxrmsd_tmp)
     end if
+    if (floor(1.d0*i/num_files) .ge. tmpcnt) then
+      tmpcnt=tmpcnt+1
+      write(6,'(A)',advance="no") '*'
+    end if
   end do
   close(95)
   
   open(111,file='out.txt',status='replace')
   !~write(111,*) '#energy,', 'occurrence,', 'matching structures with increasing energy'
   do i=1,size(tl)
-    write(111,'(F16.5,I4,F10.5,F10.5,999I5)') (struc_rep(tl(i)%i(1))%energy-e_ub)*h2kcm, size(tl(i)%i), maxrmsd(i), maxediff(i),&
+    write(111,'(F16.5,I4,F10.5,F10.5,9999I5)') (struc_rep(tl(i)%i(1))%energy-e_ub)*h2kcm, size(tl(i)%i), maxrmsd(i), maxediff(i),&
     & struc_rep(tl(i)%i(:))%tag
   end do
   close(111)
