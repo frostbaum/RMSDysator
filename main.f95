@@ -138,6 +138,7 @@ program main
     end if
   end do
   close(95)
+  write(6,'(A)')
   
   open(111,file='out.txt',status='replace')
   !~write(111,*) '#energy,', 'occurrence,', 'matching structures with increasing energy'
