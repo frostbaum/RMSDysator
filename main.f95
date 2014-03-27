@@ -6,7 +6,7 @@ program main
   type tag_list
     integer, dimension(:), allocatable :: i
   end type
-  integer :: num_files, i, j, cand, k, cnt, curnum, tmpsize
+  integer :: num_files, i, j, cand, k, cnt, curnum, tmpsize, tmpratio, curratio
   character(len=50) :: filename
   integer, dimension(:), allocatable :: tmp_array
   integer, dimension(0:19) :: ref_array, com_array
@@ -20,6 +20,8 @@ program main
   read(123,*) num_files
   read(123,*) rmsd_lim
   read(123,*) anceps
+  
+  write(6,'(A)') 'Reading structures ...'
   
   allocate(struc_rep(num_files))
   
@@ -62,11 +64,19 @@ program main
   maxrmsd(1) = 0.d0
   maxediff(1) = 0.d0
   
+  write(6,'(A)') 'Starting analysis ...'
+  
+  tmpratio=0
+  write(6,'(A)') '---|---|---|---|---|---|---|---|---|---|'
+  
   do i=2,num_files
     rmsd = 1111.d0
     cand = 0
     call rmsd_set_anc_s1(struc_rep(i))
     !~write(*,*)
+	curratio = i*40/num_files
+	call progressbar_add(tmpratio,curratio)
+	tmpratio = curratio
     do j=1,size(tl)
       ediff_tmp = abs(struc_get_energy(struc_rep(i)) - struc_get_energy(struc_rep(tl(j)%i(1))))*h2kcm
       if (ediff_tmp .gt. ediff_lim) cycle
@@ -137,5 +147,15 @@ program main
   deallocate(struc_rep)
   stop
 666 write(*,*) 'bad input'
+
+contains
+  subroutine progressbar_add(old,current)
+    integer :: current, old, loopcnt
+	
+	do loopcnt=old+1,current
+	  write(6,'(A)',advance='no') '*'
+	end do
+	
+  end subroutine
 
 end program
