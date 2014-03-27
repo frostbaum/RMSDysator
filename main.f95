@@ -6,7 +6,7 @@ program main
   type tag_list
     integer, dimension(:), allocatable :: i
   end type
-  integer :: num_files, i, j, cand, k, cnt, curnum, tmpsize
+  integer :: num_files, i, j, cand, k, cnt, curnum, tmpsize, tmpcnt
   character(len=50) :: filename
   integer, dimension(:), allocatable :: tmp_array
   integer, dimension(0:19) :: ref_array, com_array
@@ -21,6 +21,8 @@ program main
   read(123,*) rmsd_lim
   read(123,*) anceps
   
+  write(6,*) 'Reading structures...'
+
   allocate(struc_rep(num_files))
   
   read(123,*) curnum, filename
@@ -61,7 +63,11 @@ program main
   tl(1)%i(1) = 1
   maxrmsd(1) = 0.d0
   maxediff(1) = 0.d0
+
+  write(6,*) 'Starting analysis...'
   
+  tmpcnt=0
+
   do i=2,num_files
     rmsd = 1111.d0
     cand = 0
@@ -123,6 +129,10 @@ program main
       maxrmsd(tmpsize+1) = 0.d0
       
       deallocate(tl_tmp,maxediff_tmp,maxrmsd_tmp)
+    end if
+    if (floor(1.d0*i/num_files) .ge. tmpcnt) then
+      tmpcnt=tmpcnt+1
+      write(6,'(A)',advance="no") '*'
     end if
   end do
   close(95)
