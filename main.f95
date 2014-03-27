@@ -136,10 +136,6 @@ program main
       
       deallocate(tl_tmp,maxediff_tmp,maxrmsd_tmp)
     end if
-    if (floor(1.d0*i/num_files) .ge. tmpcnt) then
-      tmpcnt=tmpcnt+1
-      write(6,'(A)',advance="no") '*'
-    end if
   end do
   close(95)
   
