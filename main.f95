@@ -15,11 +15,11 @@ program main
   type(tag_list), dimension(:), allocatable :: tl, tl_tmp
   double precision :: rmsd, rmsd_tmp, ediff, ediff_tmp, rmsd_lim = .5d0, ediff_lim = 5.d0, e_ub = 0.d0, anceps = 1.d0
   double precision, dimension(:), allocatable :: maxrmsd, maxediff, maxrmsd_tmp, maxediff_tmp
-  double precision, parameter :: h2kcm = 627.509469d0
+  double precision :: econv = 627.509469d0
   
   open(123,file='tmp.txt',status='old')
   read(123,*) num_files
-  read(123,*) rmsd_lim
+  read(123,*) rmsd_lim, ediff_lim, econv
   read(123,*) anceps
   
   write(6,'(A)') 'Reading structures ...'
@@ -80,14 +80,14 @@ program main
 	call progressbar_add(tmpratio,curratio)
 	tmpratio = curratio
     do j=1,size(tl)
-      ediff_tmp = abs(struc_get_energy(struc_rep(i)) - struc_get_energy(struc_rep(tl(j)%i(1))))*h2kcm
+      ediff_tmp = abs(struc_get_energy(struc_rep(i)) - struc_get_energy(struc_rep(tl(j)%i(1))))*econv
       if (ediff_tmp .gt. ediff_lim) cycle
       
       call rmsd_set_anc_s2(struc_rep(tl(j)%i(1)))
       call rmsd_calc(rmsd_tmp,cnt)
       
       write(95,'(A,I4.1,A,I4.1,A,F10.4,A,F10.4,A,I4)') 'compare ',struc_rep(i)%tag,' and ',struc_rep(tl(j)%i(1))%tag,&
-      &'; RMSD [A]: ',rmsd_tmp,';    Delta E [kcal/mol]: ',(struc_rep(tl(j)%i(1))%energy-struc_rep(i)%energy)*h2kcm,&
+      &'; RMSD [A]: ',rmsd_tmp,';    Delta E [kcal/mol]: ',(struc_rep(tl(j)%i(1))%energy-struc_rep(i)%energy)*econv,&
       &';  Match count:', cnt
       
       if (rmsd_tmp .ge. rmsd) cycle
@@ -143,7 +143,7 @@ program main
   open(111,file='out.txt',status='replace')
   !~write(111,*) '#energy,', 'occurrence,', 'matching structures with increasing energy'
   do i=1,size(tl)
-    write(111,'(F16.5,I4,F10.5,F10.5,9999I5)') (struc_rep(tl(i)%i(1))%energy-e_ub)*h2kcm, size(tl(i)%i), maxrmsd(i), maxediff(i),&
+    write(111,'(F16.5,I4,F10.5,F10.5,9999I5)') (struc_rep(tl(i)%i(1))%energy-e_ub)*econv, size(tl(i)%i), maxrmsd(i), maxediff(i),&
     & struc_rep(tl(i)%i(:))%tag
   end do
   close(111)
