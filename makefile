@@ -1,7 +1,7 @@
 FC=gfortran
 FCFLAGS+= -O2
 LDFLAGS+= -llapack -lblas
-p_NAME := RMSDysator
+p_NAME := RMSDysator_prog
 
 .PHONY: all, clean, distclean
 
